@@ -89,7 +89,7 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         appBar: AppBar(
-          toolbarHeight: 60,
+          toolbarHeight: 70,
           elevation: 0,
           title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -132,7 +132,7 @@ class _MyAppState extends State<MyApp> {
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
         floatingActionButton: IconButton(
-            iconSize: 70,
+            iconSize: 85,
             onPressed: changeAlarmVisibility,
             icon: const Icon(Icons.add_circle)),
       ),
