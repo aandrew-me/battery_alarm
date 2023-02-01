@@ -16,14 +16,64 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
+const notificationChannelId = 'my_foreground';
+const notificationId = 888;
+
+void alarmSoundToggle(play){
+    if (play){
+      FlutterRingtonePlayer.playAlarm();
+    }
+    else{
+      FlutterRingtonePlayer.stop();
+    }
+}
+
 Future<void> initializeService() async {
   final service = FlutterBackgroundService();
+
+  const AndroidNotificationChannel channel = AndroidNotificationChannel(
+    notificationChannelId, // id
+    'MY FOREGROUND SERVICE', // title
+    description:
+        'This channel is used for important notifications.', // description
+    importance: Importance.high, // importance must be at low or higher level
+  );
+
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  // await flutterLocalNotificationsPlugin
+  //     .resolvePlatformSpecificImplementation<
+  //         AndroidFlutterLocalNotificationsPlugin>()
+  //     ?.createNotificationChannel(channel);
+
+  const AndroidInitializationSettings androidInitializationSettings =
+      AndroidInitializationSettings('logo');
+
+  const InitializationSettings initializationSettings =
+      InitializationSettings(android: androidInitializationSettings);
+
+  void onDidReceiveNotificationResponse(
+      NotificationResponse notificationResponse) async {
+    alarmSoundToggle(false);
+    print("Clicked on notification");
+  }
+
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings,
+      onDidReceiveNotificationResponse: onDidReceiveNotificationResponse);
 
   service.configure(
       iosConfiguration: IosConfiguration(
           onBackground: null, autoStart: false, onForeground: null),
       androidConfiguration: AndroidConfiguration(
-          onStart: onStart, isForegroundMode: false, autoStart: false));
+        autoStartOnBoot: false,
+        notificationChannelId: notificationChannelId,
+        onStart: onStart,
+        isForegroundMode: true,
+        autoStart: false,
+        initialNotificationTitle: 'Battery Alarm',
+        initialNotificationContent: 'Service running in background',
+      ));
 }
 
 void onStart(ServiceInstance service) async {
@@ -46,11 +96,44 @@ class _MyAppState extends State<MyApp> {
   bool alarmVisible = false;
   List dataList = [];
   List<Widget> InfoList = [];
+  bool serviceEnabled = false;
+  String serviceStatusTxt = "Service is disabled";
 
   @override
   void initState() {
     super.initState();
     getInfo();
+  }
+
+  void getServiceStatus() async {
+    SharedPreferences storage = await SharedPreferences.getInstance();
+    String? data = storage.getString("serviceEnabled");
+    if (data != "" && data != null) {
+      setState(() {
+        serviceEnabled = bool.fromEnvironment(data);
+      });
+    }
+  }
+
+  void toggleServiceStatus() async {
+    final service = FlutterBackgroundService();
+    SharedPreferences storage = await SharedPreferences.getInstance();
+    setState(() {
+      serviceEnabled = !serviceEnabled;
+      if (serviceEnabled) {
+        serviceStatusTxt = "Service is enabled";
+      } else {
+        serviceStatusTxt = "Service is disabled";
+      }
+    });
+    if (serviceEnabled) {
+      service.startService();
+    } else {
+      service.invoke("stopService");
+      alarmSoundToggle(false);
+    }
+
+    await storage.setString("serviceEnabled", jsonEncode(serviceEnabled));
   }
 
   void addToStorage(info) async {
@@ -89,7 +172,7 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         appBar: AppBar(
-          toolbarHeight: 70,
+          toolbarHeight: 75,
           elevation: 0,
           title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -97,7 +180,9 @@ class _MyAppState extends State<MyApp> {
               const Text("Battery Alarm"),
               IconButton(
                   iconSize: 35,
-                  onPressed: () {},
+                  onPressed: () {
+                    alarmSoundToggle(false);
+                  },
                   icon: const Icon(
                     Icons.more_vert,
                   ))
@@ -106,13 +191,33 @@ class _MyAppState extends State<MyApp> {
         ),
         body: Stack(
           children: [
-            Column(
-              children: [
-                SizedBox(
-                  height: 10,
-                ),
-                ...InfoList
-              ],
+            SingleChildScrollView(
+              child: Column(
+                children: [
+                  const SizedBox(
+                    height: 15,
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        serviceStatusTxt,
+                        style: const TextStyle(fontSize: 24),
+                      ),
+                      Switch(
+                        value: serviceEnabled,
+                        onChanged: (value) {
+                          toggleServiceStatus();
+                        },
+                      )
+                    ],
+                  ),
+                  const SizedBox(
+                    height: 15,
+                  ),
+                  ...InfoList,
+                ],
+              ),
             ),
             Visibility(
               visible: alarmVisible,
@@ -132,7 +237,7 @@ class _MyAppState extends State<MyApp> {
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
         floatingActionButton: IconButton(
-            iconSize: 85,
+            iconSize: 95,
             onPressed: changeAlarmVisibility,
             icon: const Icon(Icons.add_circle)),
       ),
@@ -201,12 +306,17 @@ class _ItemState extends State<Item> {
 }
 
 void periodicCheck() {
-  Timer.periodic(const Duration(seconds: 10), (timer) async {
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  Timer.periodic(const Duration(seconds: 20), (timer) async {
     final percentage = await battery.batteryLevel;
     SharedPreferences storage = await SharedPreferences.getInstance();
-    String? storageData = await storage.getString("data");
+    String? storageData = storage.getString("data");
+
     if (storageData != "" && storageData != null) {}
     List storageDataList = [];
+
     if (storageData != null && storageData != "") {
       storageDataList = jsonDecode(storageData);
     }
@@ -216,18 +326,42 @@ void periodicCheck() {
 
       if (item["enabled"] == true) {
         if (item["state"] == "When Charging") {
-          if (percentage >= item["level"]) {
-            print("Bing!");
-            FlutterRingtonePlayer.playAlarm();
+          if (percentage == item["level"]) {
+            alarmSoundToggle(true);
+            flutterLocalNotificationsPlugin.show(
+                notificationId,
+                'Battery Alarm',
+                'Plugin or unplug your phone!',
+                const NotificationDetails(
+                  android: AndroidNotificationDetails(
+                      notificationChannelId, 'MY FOREGROUND SERVICE',
+                      icon: 'ic_bg_service_small',
+                      ongoing: true,
+                      fullScreenIntent: true,
+                      actions: [
+                        AndroidNotificationAction(
+                            notificationChannelId, "Disable")
+                      ]),
+                ));
             break;
           }
         }
         // When not charging
         else {
-          if (percentage <= item["level"]) {
-            print("Bingo!");
-            FlutterRingtonePlayer.playAlarm();
-
+          if (percentage == item["level"]) {
+            alarmSoundToggle(true);
+            flutterLocalNotificationsPlugin.show(
+                notificationId,
+                'Battery Alarm',
+                'Plugin or unplug your phone!',
+                const NotificationDetails(
+                  android: AndroidNotificationDetails(
+                    notificationChannelId,
+                    'MY FOREGROUND SERVICE',
+                    icon: 'ic_bg_service_small',
+                    ongoing: true,
+                  ),
+                ));
             break;
           }
         }
@@ -339,7 +473,6 @@ class _AlarmBoxState extends State<AlarmBox> {
                             "data", jsonEncode(storageDataList));
                         widget.changeVisibility();
                         widget.getInfo();
-                        service.startService();
                       } else {
                         // Show error message
                       }
