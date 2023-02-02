@@ -31,7 +31,7 @@ jobs:
       - name: Build Android App
         run: flutter build apk --verbose --release
 
-      - run: cp build/app/outputs/flutter-apk/app-releaase.apk battery-alarm.apk
+      - run: cp build/app/outputs/flutter-apk/app-release.apk battery-alarm.apk
   
       - name: Release
         uses: softprops/action-gh-release@v1
