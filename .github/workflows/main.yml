@@ -29,11 +29,9 @@ jobs:
         run: flutter pub get
 
       - name: Build Android App
-        run: flutter build apk --split-per-abi --verbose
+        run: flutter build apk --verbose --release
 
-      - run: cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk battery-alarm-arm64-v8a-release.apk
-      - run: cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk battery-alarm-armeabi-v7a-release.apk
-      - run: cp build/app/outputs/flutter-apk/app-x86_64-release.apk battery-alarm-x86_64-release.apk
+      - run: cp build/app/outputs/flutter-apk/app-releaase.apk battery-alarm.apk
   
       - name: Release
         uses: softprops/action-gh-release@v1
@@ -44,7 +42,5 @@ jobs:
           body: ""
           tag_name: "Battery Alarm"
           files: |
-            battery-alarm-arm64-v8a-release.apk
-            battery-alarm-armeabi-v7a-release.apk
-            battery-alarm-x86_64-release.apk
+             build/app/outputs/flutter-apk/app-releaase.apk
           token: ${{ secrets.GITHUB_TOKEN }}

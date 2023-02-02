@@ -69,7 +69,7 @@ Future<void> initializeService() async {
         autoStartOnBoot: false,
         notificationChannelId: notificationChannelId,
         onStart: onStart,
-        isForegroundMode: true,
+        isForegroundMode: false,
         autoStart: false,
         initialNotificationTitle: 'Battery Alarm',
         initialNotificationContent: 'Service running in background',
@@ -132,7 +132,7 @@ class _MyAppState extends State<MyApp> {
       service.invoke("stopService");
       alarmSoundToggle(false);
     }
-
+    print("Service status: $serviceEnabled");
     await storage.setString("serviceEnabled", jsonEncode(serviceEnabled));
   }
 
