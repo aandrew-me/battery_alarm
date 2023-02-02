@@ -29,15 +29,22 @@ jobs:
         run: flutter pub get
 
       - name: Build Android App
-        run: flutter build apk --split-per-abi
+        run: flutter build apk --split-per-abi --verbose
+
+      - run: cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk battery-alarm-arm64-v8a-release.apk
+      - run: cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk battery-alarm-armeabi-v7a-release.apk
+      - run: cp build/app/outputs/flutter-apk/app-x86_64-release.apk battery-alarm-x86_64-release.apk
   
-      - name: Upload binaries to release
-        uses: svenstaro/upload-release-action@v2
+      - name: Release
+        uses: softprops/action-gh-release@v1
+
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: build/app/outputs/flutter-apk/*.apk
-          asset_name: battery_alarm
-          tag: ${{ github.ref }}
-          overwrite: true
-          body: "This is my release text",
-          tag: ${{ github.ref }}
+          draft: true
+          prerelease: false
+          body: ""
+          tag_name: "app"
+          files: |
+            battery-alarm-arm64-v8a-release.apk
+            battery-alarm-armeabi-v7a-release.apk
+            battery-alarm-x86_64-release.apk
+          token: ${{ secrets.GITHUB_TOKEN }}
