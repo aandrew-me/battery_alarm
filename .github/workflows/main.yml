@@ -6,7 +6,7 @@ permissions:
 on:
   push:
     branches:
-      - main
+      - release
 
 jobs:
   build:
@@ -42,7 +42,7 @@ jobs:
           draft: true
           prerelease: false
           body: ""
-          tag_name: "app"
+          tag_name: "Battery Alarm"
           files: |
             battery-alarm-arm64-v8a-release.apk
             battery-alarm-armeabi-v7a-release.apk
