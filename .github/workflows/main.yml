@@ -28,8 +28,12 @@ jobs:
       - name: Build Android App
         run: flutter build apk --split-per-abi
   
-      - name: Create Github Release
-        uses: ncipollo/release-action@v1
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
         with:
-          artifacts: "build/app/outputs/bundle/release/*.apk"
-          token: ${{ secrets.GITHUB_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: build/app/outputs/bundle/release/*.apk
+          asset_name: battery_alarm
+          tag: ${{ github.ref }}
+          overwrite: true
+          body: "This is my release text"
