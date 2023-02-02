@@ -19,13 +19,12 @@ Future<void> main() async {
 const notificationChannelId = 'my_foreground';
 const notificationId = 888;
 
-void alarmSoundToggle(play){
-    if (play){
-      FlutterRingtonePlayer.playAlarm();
-    }
-    else{
-      FlutterRingtonePlayer.stop();
-    }
+void alarmSoundToggle(play) {
+  if (play) {
+    FlutterRingtonePlayer.playAlarm();
+  } else {
+    FlutterRingtonePlayer.stop();
+  }
 }
 
 Future<void> initializeService() async {
@@ -103,6 +102,7 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     getInfo();
+    getServiceStatus();
   }
 
   void getServiceStatus() async {
@@ -110,12 +110,24 @@ class _MyAppState extends State<MyApp> {
     String? data = storage.getString("serviceEnabled");
     if (data != "" && data != null) {
       setState(() {
-        serviceEnabled = bool.fromEnvironment(data);
+        if (data == "true"){
+          serviceEnabled = true;
+        }
+        else{
+          serviceEnabled = false;
+        }
+        print("Service status: $serviceEnabled");
+
+        if (serviceEnabled) {
+          serviceStatusTxt = "Service is enabled";
+        } else {
+          serviceStatusTxt = "Service is disabled";
+        }
       });
     }
   }
 
-  void toggleServiceStatus() async {
+  void toggleServiceStatus(value) async {
     final service = FlutterBackgroundService();
     SharedPreferences storage = await SharedPreferences.getInstance();
     setState(() {
@@ -132,7 +144,7 @@ class _MyAppState extends State<MyApp> {
       service.invoke("stopService");
       alarmSoundToggle(false);
     }
-    print("Service status: $serviceEnabled");
+    print("Changing service status to $serviceEnabled");
     await storage.setString("serviceEnabled", jsonEncode(serviceEnabled));
   }
 
@@ -207,7 +219,7 @@ class _MyAppState extends State<MyApp> {
                       Switch(
                         value: serviceEnabled,
                         onChanged: (value) {
-                          toggleServiceStatus();
+                          toggleServiceStatus(value);
                         },
                       )
                     ],
