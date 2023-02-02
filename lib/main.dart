@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:math';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import "package:battery_plus/battery_plus.dart";
 import 'package:flutter_background_service/flutter_background_service.dart';
@@ -19,12 +21,9 @@ Future<void> main() async {
 const notificationChannelId = 'my_foreground';
 const notificationId = 888;
 
-void alarmSoundToggle(play) {
-  if (play) {
-    FlutterRingtonePlayer.playAlarm(looping: false);
-  } else {
-    FlutterRingtonePlayer.stop();
-  }
+void stopAlarm() async{
+  final service = FlutterBackgroundService();
+  service.invoke("stopAlarm");
 }
 
 Future<void> initializeService() async {
@@ -54,7 +53,7 @@ Future<void> initializeService() async {
 
   void onDidReceiveNotificationResponse(
       NotificationResponse notificationResponse) async {
-    alarmSoundToggle(false);
+    stopAlarm();
     print("Clicked on notification");
   }
 
@@ -78,10 +77,20 @@ Future<void> initializeService() async {
 void onStart(ServiceInstance service) async {
   print("Service started");
   periodicCheck();
+
   service.on('stopService').listen((event) {
     print("Stopping service");
     service.stopSelf();
   });
+  service.on("stopAlarm").listen((event) {
+    print("Trying to stop alarm");
+    FlutterRingtonePlayer.stop();
+  });
+  service.on("playAlarm").listen((event) {
+    print("Playing alarm");
+    FlutterRingtonePlayer.playAlarm();
+  });
+
 }
 
 class MyApp extends StatefulWidget {
@@ -110,10 +119,9 @@ class _MyAppState extends State<MyApp> {
     String? data = storage.getString("serviceEnabled");
     if (data != "" && data != null) {
       setState(() {
-        if (data == "true"){
+        if (data == "true") {
           serviceEnabled = true;
-        }
-        else{
+        } else {
           serviceEnabled = false;
         }
         print("Service status: $serviceEnabled");
@@ -129,6 +137,7 @@ class _MyAppState extends State<MyApp> {
 
   void toggleServiceStatus(value) async {
     final service = FlutterBackgroundService();
+    
     SharedPreferences storage = await SharedPreferences.getInstance();
     setState(() {
       serviceEnabled = !serviceEnabled;
@@ -142,7 +151,7 @@ class _MyAppState extends State<MyApp> {
       service.startService();
     } else {
       service.invoke("stopService");
-      alarmSoundToggle(false);
+      stopAlarm();
     }
     print("Changing service status to $serviceEnabled");
     await storage.setString("serviceEnabled", jsonEncode(serviceEnabled));
@@ -193,7 +202,7 @@ class _MyAppState extends State<MyApp> {
               IconButton(
                   iconSize: 35,
                   onPressed: () {
-                    alarmSoundToggle(false);
+                    stopAlarm();
                   },
                   icon: const Icon(
                     Icons.more_vert,
@@ -320,6 +329,7 @@ class _ItemState extends State<Item> {
 void periodicCheck() {
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
+  final service = FlutterBackgroundService();
 
   Timer.periodic(const Duration(seconds: 20), (timer) async {
     final percentage = await battery.batteryLevel;
@@ -339,7 +349,7 @@ void periodicCheck() {
       if (item["enabled"] == true) {
         if (item["state"] == "When Charging") {
           if (percentage == item["level"]) {
-            alarmSoundToggle(true);
+            service.invoke("playAlarm");
             flutterLocalNotificationsPlugin.show(
                 notificationId,
                 'Battery Alarm',
@@ -361,7 +371,7 @@ void periodicCheck() {
         // When not charging
         else {
           if (percentage == item["level"]) {
-            alarmSoundToggle(true);
+            service.invoke("playAlarm");
             flutterLocalNotificationsPlugin.show(
                 notificationId,
                 'Battery Alarm',
