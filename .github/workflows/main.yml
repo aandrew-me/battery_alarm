@@ -40,7 +40,7 @@ jobs:
           draft: true
           prerelease: false
           body: ""
-          tag_name: "Battery Alarm"
+          tag_name: ${{ github.ref_name }}
           files: |
              build/app/outputs/flutter-apk/app-releaase.apk
           token: ${{ secrets.GITHUB_TOKEN }}
