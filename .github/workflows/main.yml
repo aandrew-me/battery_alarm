@@ -35,8 +35,9 @@ jobs:
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: build/app/outputs/bundle/release/*.apk
+          file: build/app/outputs/flutter-apk/*.apk
           asset_name: battery_alarm
           tag: ${{ github.ref }}
           overwrite: true
-          body: "This is my release text"
+          body: "This is my release text",
+          tag: ${{ github.ref }}
