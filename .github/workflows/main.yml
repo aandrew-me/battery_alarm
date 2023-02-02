@@ -42,5 +42,5 @@ jobs:
           body: ""
           tag_name: ${{ github.ref_name }}
           files: |
-             build/app/outputs/flutter-apk/app-releaase.apk
+             build/app/outputs/flutter-apk/app-release.apk
           token: ${{ secrets.GITHUB_TOKEN }}
