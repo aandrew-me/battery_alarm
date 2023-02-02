@@ -21,7 +21,7 @@ const notificationId = 888;
 
 void alarmSoundToggle(play) {
   if (play) {
-    FlutterRingtonePlayer.playAlarm();
+    FlutterRingtonePlayer.playAlarm(looping: false);
   } else {
     FlutterRingtonePlayer.stop();
   }
