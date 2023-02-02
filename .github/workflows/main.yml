@@ -29,8 +29,7 @@ jobs:
         run: flutter build apk --split-per-abi
   
       - name: Release Apps
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: Battery_alarm
-          token: ${{ secrets.GITHUB_TOKEN }}
-          artifacts: "build/app/outputs/apk/release/*.apk"
+          path: "build/app/outputs/apk/release/*.apk"
