@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:isolate';
 import 'dart:math';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import "package:battery_plus/battery_plus.dart";
 import 'package:flutter_background_service/flutter_background_service.dart';
@@ -21,9 +19,13 @@ Future<void> main() async {
 const notificationChannelId = 'my_foreground';
 const notificationId = 888;
 
-void stopAlarm() async{
+void stopAlarm() {
   final service = FlutterBackgroundService();
   service.invoke("stopAlarm");
+}
+
+void playAlarm() {
+  FlutterRingtonePlayer.playAlarm();
 }
 
 Future<void> initializeService() async {
@@ -44,6 +46,11 @@ Future<void> initializeService() async {
   //     .resolvePlatformSpecificImplementation<
   //         AndroidFlutterLocalNotificationsPlugin>()
   //     ?.createNotificationChannel(channel);
+
+  flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.requestPermission();
 
   const AndroidInitializationSettings androidInitializationSettings =
       AndroidInitializationSettings('logo');
@@ -74,6 +81,7 @@ Future<void> initializeService() async {
       ));
 }
 
+@pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
   print("Service started");
   periodicCheck();
@@ -86,11 +94,6 @@ void onStart(ServiceInstance service) async {
     print("Trying to stop alarm");
     FlutterRingtonePlayer.stop();
   });
-  service.on("playAlarm").listen((event) {
-    print("Playing alarm");
-    FlutterRingtonePlayer.playAlarm();
-  });
-
 }
 
 class MyApp extends StatefulWidget {
@@ -137,7 +140,7 @@ class _MyAppState extends State<MyApp> {
 
   void toggleServiceStatus(value) async {
     final service = FlutterBackgroundService();
-    
+
     SharedPreferences storage = await SharedPreferences.getInstance();
     setState(() {
       serviceEnabled = !serviceEnabled;
@@ -192,6 +195,7 @@ class _MyAppState extends State<MyApp> {
       debugShowMaterialGrid: false,
       debugShowCheckedModeBanner: false,
       home: Scaffold(
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(
           toolbarHeight: 75,
           elevation: 0,
@@ -202,7 +206,7 @@ class _MyAppState extends State<MyApp> {
               IconButton(
                   iconSize: 35,
                   onPressed: () {
-                    stopAlarm();
+                   stopAlarm();
                   },
                   icon: const Icon(
                     Icons.more_vert,
@@ -256,7 +260,7 @@ class _MyAppState extends State<MyApp> {
             )
           ],
         ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
         floatingActionButton: IconButton(
             iconSize: 95,
             onPressed: changeAlarmVisibility,
@@ -331,7 +335,7 @@ void periodicCheck() {
       FlutterLocalNotificationsPlugin();
   final service = FlutterBackgroundService();
 
-  Timer.periodic(const Duration(seconds: 20), (timer) async {
+  Timer.periodic(const Duration(seconds: 10), (timer) async {
     final percentage = await battery.batteryLevel;
     SharedPreferences storage = await SharedPreferences.getInstance();
     String? storageData = storage.getString("data");
@@ -347,16 +351,27 @@ void periodicCheck() {
       print(item);
 
       if (item["enabled"] == true) {
+        final String itemId = item["id"];
+        // Disabling that entry in storage
+        List newStorageDataList = [];
+        storageDataList.forEach((element) {
+          if (element["id"] == itemId){
+            element["enabled"] = false;
+          }
+          newStorageDataList.add(element);
+        });
+        print(newStorageDataList);
+        await storage.setString("data", jsonEncode(newStorageDataList));
         if (item["state"] == "When Charging") {
           if (percentage == item["level"]) {
-            service.invoke("playAlarm");
+            playAlarm();
             flutterLocalNotificationsPlugin.show(
                 notificationId,
                 'Battery Alarm',
-                'Plugin or unplug your phone!',
+                'Click to stop alarm',
                 const NotificationDetails(
                   android: AndroidNotificationDetails(
-                      notificationChannelId, 'MY FOREGROUND SERVICE',
+                      notificationChannelId, 'Battery Alarm',
                       icon: 'ic_bg_service_small',
                       ongoing: true,
                       fullScreenIntent: true,
@@ -371,7 +386,7 @@ void periodicCheck() {
         // When not charging
         else {
           if (percentage == item["level"]) {
-            service.invoke("playAlarm");
+            playAlarm();
             flutterLocalNotificationsPlugin.show(
                 notificationId,
                 'Battery Alarm',
@@ -379,7 +394,7 @@ void periodicCheck() {
                 const NotificationDetails(
                   android: AndroidNotificationDetails(
                     notificationChannelId,
-                    'MY FOREGROUND SERVICE',
+                    'Battery Alarm',
                     icon: 'ic_bg_service_small',
                     ongoing: true,
                   ),
