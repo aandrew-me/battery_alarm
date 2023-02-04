@@ -65,7 +65,8 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-
+# Execute the following command to generate icons
+# flutter pub run flutter_launcher_icons:main
 flutter_icons:
   image_path: "logo.png" 
   android: true
@@ -98,5 +99,4 @@ flutter_icons:
   #       - asset: fonts/TrajanPro_Bold.ttf
   #         weight: 700
   #
-  # For details regarding fonts from package dependencies,
-  # see https://flutter.dev/custom-fonts/#from-packages
+
