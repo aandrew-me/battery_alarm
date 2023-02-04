@@ -17,8 +17,7 @@ Future<void> main() async {
 }
 
 void refreshMyPage() {
-  myGlobalKey.currentState?.setState(() {
-  });
+  myGlobalKey.currentState?.setState(() {});
 }
 
 const notificationChannelId = 'my_foreground';
@@ -81,8 +80,6 @@ Future<void> initializeService() async {
         onStart: onStart,
         isForegroundMode: false,
         autoStart: false,
-        initialNotificationTitle: 'Battery Alarm',
-        initialNotificationContent: 'Service running in background',
       ));
 }
 
@@ -446,10 +443,9 @@ void periodicCheck() {
                       icon: 'ic_bg_service_small',
                       playSound: false,
                       fullScreenIntent: true,
-                      actions: [
-                        AndroidNotificationAction(
-                            notificationChannelId, "Disable")
-                      ]),
+                      ongoing: true,
+                      importance: Importance.max,
+                      priority: Priority.max),
                 ));
             break;
           }
@@ -464,11 +460,13 @@ void periodicCheck() {
                 'Plugin or unplug your phone!',
                 const NotificationDetails(
                   android: AndroidNotificationDetails(
-                    notificationChannelId,
-                    'Battery Alarm',
-                    icon: 'ic_bg_service_small',
-                    playSound: false,
-                  ),
+                      importance: Importance.max,
+                      priority: Priority.max,
+                      notificationChannelId,
+                      'Battery Alarm',
+                      icon: 'ic_bg_service_small',
+                      playSound: false,
+                      ongoing: true),
                 ));
             break;
           }
