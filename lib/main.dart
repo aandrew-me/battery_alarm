@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:isolate';
 import 'dart:math';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import "package:battery_plus/battery_plus.dart";
 import 'package:flutter_background_service/flutter_background_service.dart';
@@ -18,24 +16,33 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
+void refreshMyPage() {
+  myGlobalKey.currentState?.setState(() {
+  });
+}
+
 const notificationChannelId = 'my_foreground';
 const notificationId = 888;
 
-void stopAlarm() async{
+void stopAlarm() {
   final service = FlutterBackgroundService();
   service.invoke("stopAlarm");
+}
+
+void playAlarm() {
+  FlutterRingtonePlayer.playAlarm();
 }
 
 Future<void> initializeService() async {
   final service = FlutterBackgroundService();
 
-  const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    notificationChannelId, // id
-    'MY FOREGROUND SERVICE', // title
-    description:
-        'This channel is used for important notifications.', // description
-    importance: Importance.high, // importance must be at low or higher level
-  );
+  // const AndroidNotificationChannel channel = AndroidNotificationChannel(
+  //   notificationChannelId, // id
+  //   'MY FOREGROUND SERVICE', // title
+  //   description:
+  //       'This channel is used for important notifications.', // description
+  //   importance: Importance.high, // importance must be at low or higher level
+  // );
 
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
@@ -44,6 +51,11 @@ Future<void> initializeService() async {
   //     .resolvePlatformSpecificImplementation<
   //         AndroidFlutterLocalNotificationsPlugin>()
   //     ?.createNotificationChannel(channel);
+
+  flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.requestPermission();
 
   const AndroidInitializationSettings androidInitializationSettings =
       AndroidInitializationSettings('logo');
@@ -74,6 +86,7 @@ Future<void> initializeService() async {
       ));
 }
 
+@pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
   print("Service started");
   periodicCheck();
@@ -86,12 +99,9 @@ void onStart(ServiceInstance service) async {
     print("Trying to stop alarm");
     FlutterRingtonePlayer.stop();
   });
-  service.on("playAlarm").listen((event) {
-    print("Playing alarm");
-    FlutterRingtonePlayer.playAlarm();
-  });
-
 }
+
+final myGlobalKey = GlobalKey<_MyAppState>();
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -115,12 +125,14 @@ class _MyAppState extends State<MyApp> {
   }
 
   void getServiceStatus() async {
-    SharedPreferences storage = await SharedPreferences.getInstance();
+    final service = FlutterBackgroundService();
+    final storage = await SharedPreferences.getInstance();
     String? data = storage.getString("serviceEnabled");
     if (data != "" && data != null) {
       setState(() {
         if (data == "true") {
           serviceEnabled = true;
+          service.startService();
         } else {
           serviceEnabled = false;
         }
@@ -137,8 +149,8 @@ class _MyAppState extends State<MyApp> {
 
   void toggleServiceStatus(value) async {
     final service = FlutterBackgroundService();
-    
-    SharedPreferences storage = await SharedPreferences.getInstance();
+
+    final storage = await SharedPreferences.getInstance();
     setState(() {
       serviceEnabled = !serviceEnabled;
       if (serviceEnabled) {
@@ -157,8 +169,29 @@ class _MyAppState extends State<MyApp> {
     await storage.setString("serviceEnabled", jsonEncode(serviceEnabled));
   }
 
+  void deleteItem(itemId) async {
+    final storage = await SharedPreferences.getInstance();
+    storage.reload();
+    String? data = storage.getString("data");
+    List dataList;
+    if (data != null && data != "") {
+      dataList = jsonDecode(data);
+      List newDataList = [];
+
+      dataList.forEach((element) {
+        if (element["id"] != itemId) {
+          newDataList.add(element);
+        }
+      });
+
+      await storage.setString("data", jsonEncode(newDataList));
+      print("Set new data to ${jsonEncode(newDataList)}");
+      getInfo(providedList: newDataList);
+    }
+  }
+
   void addToStorage(info) async {
-    SharedPreferences storage = await SharedPreferences.getInstance();
+    final storage = await SharedPreferences.getInstance();
     var encoded = jsonEncode(info);
     await storage.setString("data", encoded);
   }
@@ -169,21 +202,32 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  getInfo() async {
-    SharedPreferences storage = await SharedPreferences.getInstance();
-    info = storage.getString("data");
-    print(info.runtimeType);
-    if (info != "" && info != null) {
-      dataList = jsonDecode(info!);
-      setState(() {
-        InfoList = dataList.map((item) => Item(info: item)).toList();
-      });
+  void getInfo({providedList}) async {
+    final storage = await SharedPreferences.getInstance();
+    storage.reload();
+
+    if (providedList != null) {
+      dataList = providedList;
+    } else {
+      info = storage.getString("data");
+      if (info != "" && info != null) {
+        dataList = jsonDecode(info!);
+        print("Datalist: $dataList");
+      }
     }
+    setState(() {
+      InfoList = dataList
+          .map((item) => Item(
+                info: item,
+                deleteItem: deleteItem,
+              ))
+          .toList();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    print("Info: $InfoList");
+    // print("Info: $InfoList");
 
     return MaterialApp(
       title: "Battery Alarm",
@@ -192,6 +236,7 @@ class _MyAppState extends State<MyApp> {
       debugShowMaterialGrid: false,
       debugShowCheckedModeBanner: false,
       home: Scaffold(
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(
           toolbarHeight: 75,
           elevation: 0,
@@ -256,7 +301,7 @@ class _MyAppState extends State<MyApp> {
             )
           ],
         ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
         floatingActionButton: IconButton(
             iconSize: 95,
             onPressed: changeAlarmVisibility,
@@ -269,9 +314,12 @@ class _MyAppState extends State<MyApp> {
 class Item extends StatefulWidget {
   var info;
   var enabled;
+  var deleteItem;
+  var id;
 
-  Item({var this.info}) {
+  Item({required var this.info, required var this.deleteItem}) {
     enabled = info["enabled"];
+    id = info["id"];
   }
 
   @override
@@ -280,6 +328,7 @@ class Item extends StatefulWidget {
 
 class _ItemState extends State<Item> {
   bool _enabled = true;
+  bool visibleDeleteBtn = false;
 
   @override
   void initState() {
@@ -290,6 +339,12 @@ class _ItemState extends State<Item> {
   void toggle() {
     setState(() {
       _enabled = !_enabled;
+    });
+  }
+
+  void toggleDelete() {
+    setState(() {
+      visibleDeleteBtn = !visibleDeleteBtn;
     });
   }
 
@@ -304,9 +359,18 @@ class _ItemState extends State<Item> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "${widget.info["level"]}%",
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 35),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "${widget.info["level"]}%",
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 35),
+              ),
+              IconButton(
+                  onPressed: toggleDelete,
+                  icon: Icon(Icons.keyboard_arrow_down))
+            ],
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -319,7 +383,14 @@ class _ItemState extends State<Item> {
               ),
               Switch(value: _enabled, onChanged: ((value) => {toggle()})),
             ],
-          )
+          ),
+          Visibility(
+              visible: visibleDeleteBtn,
+              child: TextButton(
+                  onPressed: () {
+                    widget.deleteItem(widget.id);
+                  },
+                  child: Text("Delete Item", style: TextStyle(fontSize: 20))))
         ],
       ),
     );
@@ -331,9 +402,11 @@ void periodicCheck() {
       FlutterLocalNotificationsPlugin();
   final service = FlutterBackgroundService();
 
-  Timer.periodic(const Duration(seconds: 20), (timer) async {
+  Timer.periodic(const Duration(seconds: 10), (timer) async {
+    final storage = await SharedPreferences.getInstance();
+    storage.reload();
     final percentage = await battery.batteryLevel;
-    SharedPreferences storage = await SharedPreferences.getInstance();
+
     String? storageData = storage.getString("data");
 
     if (storageData != "" && storageData != null) {}
@@ -346,19 +419,32 @@ void periodicCheck() {
     for (var item in storageDataList) {
       print(item);
 
-      if (item["enabled"] == true) {
+      if (item["enabled"] == true && item["level"] == percentage) {
+        final String itemId = item["id"];
+        // Disabling that entry in storage
+        List newStorageDataList = [];
+        storageDataList.forEach((element) {
+          Map newElement = element;
+          if (element["id"] == itemId) {
+            newElement["enabled"] = false;
+          }
+          newStorageDataList.add(newElement);
+        });
+        print(newStorageDataList);
+        await storage.setString("data", jsonEncode(newStorageDataList));
+        refreshMyPage();
         if (item["state"] == "When Charging") {
           if (percentage == item["level"]) {
-            service.invoke("playAlarm");
+            playAlarm();
             flutterLocalNotificationsPlugin.show(
                 notificationId,
                 'Battery Alarm',
-                'Plugin or unplug your phone!',
+                'Click to stop alarm',
                 const NotificationDetails(
                   android: AndroidNotificationDetails(
-                      notificationChannelId, 'MY FOREGROUND SERVICE',
+                      notificationChannelId, 'Battery Alarm',
                       icon: 'ic_bg_service_small',
-                      ongoing: true,
+                      playSound: false,
                       fullScreenIntent: true,
                       actions: [
                         AndroidNotificationAction(
@@ -371,7 +457,7 @@ void periodicCheck() {
         // When not charging
         else {
           if (percentage == item["level"]) {
-            service.invoke("playAlarm");
+            playAlarm();
             flutterLocalNotificationsPlugin.show(
                 notificationId,
                 'Battery Alarm',
@@ -379,9 +465,9 @@ void periodicCheck() {
                 const NotificationDetails(
                   android: AndroidNotificationDetails(
                     notificationChannelId,
-                    'MY FOREGROUND SERVICE',
+                    'Battery Alarm',
                     icon: 'ic_bg_service_small',
-                    ongoing: true,
+                    playSound: false,
                   ),
                 ));
             break;
@@ -413,7 +499,7 @@ class _AlarmBoxState extends State<AlarmBox> {
   @override
   Widget build(BuildContext context) {
     return Positioned(
-        top: 100,
+        top: 0,
         left: 20,
         right: 20,
         child: Container(
@@ -466,8 +552,7 @@ class _AlarmBoxState extends State<AlarmBox> {
                       if (batteryLevel != null &&
                           batteryLevel > 0 &&
                           batteryLevel <= 100) {
-                        SharedPreferences storage =
-                            await SharedPreferences.getInstance();
+                        final storage = await SharedPreferences.getInstance();
                         final service = FlutterBackgroundService();
 
                         String? storageData = storage.getString("data");
