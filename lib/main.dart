@@ -8,6 +8,7 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:restart_app/restart_app.dart';
 
 final battery = Battery();
 
@@ -23,10 +24,21 @@ const notificationId = 888;
 void stopAlarm() {
   final service = FlutterBackgroundService();
   service.invoke("stopAlarm");
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  flutterLocalNotificationsPlugin.cancelAll();
+
+  // Rebuild UI
+  restartApp();
 }
 
 void playAlarm() {
   FlutterRingtonePlayer.playAlarm();
+}
+
+void restartApp() {
+  Restart.restartApp();
 }
 
 Future<void> initializeService() async {
@@ -234,9 +246,10 @@ class _MyAppState extends State<MyApp> {
           elevation: 0,
           title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children:  [
+            children: [
               const Text("Battery Alarm"),
-              ElevatedButton(onPressed: (() =>stopAlarm()), child: Text("Stop Alarm")),
+              ElevatedButton(
+                  onPressed: (() => stopAlarm()), child: Text("Stop Alarm")),
             ],
           ),
         ),
@@ -396,7 +409,8 @@ class _ItemState extends State<Item> {
                   onPressed: () {
                     widget.deleteItem(widget.id);
                   },
-                  child: const Text("Delete Item", style: TextStyle(fontSize: 20))))
+                  child: const Text("Delete Item",
+                      style: TextStyle(fontSize: 20))))
         ],
       ),
     );
@@ -437,7 +451,6 @@ void periodicCheck() {
         });
         print(newStorageDataList);
         await storage.setString("data", jsonEncode(newStorageDataList));
-        // Rebuild app
         if (item["state"] == "When Charging") {
           if (percentage == item["level"]) {
             playAlarm();
