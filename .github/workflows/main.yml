@@ -34,13 +34,16 @@ jobs:
       - run: cp build/app/outputs/flutter-apk/app-release.apk battery-alarm.apk
   
       - name: Release
-        uses: softprops/action-gh-release@v1
-
+      - uses: ncipollo/release-action@v2
         with:
-          draft: true
-          prerelease: false
-          body: ""
-          tag_name: ${{ github.ref_name }}
-          files: |
-            battery-alarm.apk
-          token: ${{ secrets.GITHUB_TOKEN }}
+         artifacts: "build/app/outputs/flutter-apk/*.apk"
+         token: $
+        # uses: softprops/action-gh-release@v1
+
+        # with:
+        #   draft: true
+        #   prerelease: false
+        #   body: ""
+        #   files: |
+        #     battery-alarm.apk
+        #   token: ${{ secrets.GITHUB_TOKEN }}
