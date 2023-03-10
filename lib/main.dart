@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import "package:battery_plus/battery_plus.dart";
 import 'package:flutter_background_service/flutter_background_service.dart';
@@ -14,10 +15,6 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeService();
   runApp(const MyApp());
-}
-
-void refreshMyPage() {
-  myGlobalKey.currentState?.setState(() {});
 }
 
 const notificationChannelId = 'my_foreground';
@@ -97,8 +94,6 @@ void onStart(ServiceInstance service) async {
     FlutterRingtonePlayer.stop();
   });
 }
-
-final myGlobalKey = GlobalKey<_MyAppState>();
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -239,16 +234,9 @@ class _MyAppState extends State<MyApp> {
           elevation: 0,
           title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
+            children:  [
               const Text("Battery Alarm"),
-              IconButton(
-                  iconSize: 35,
-                  onPressed: () {
-                    stopAlarm();
-                  },
-                  icon: const Icon(
-                    Icons.more_vert,
-                  ))
+              ElevatedButton(onPressed: (() =>stopAlarm()), child: Text("Stop Alarm")),
             ],
           ),
         ),
@@ -333,7 +321,28 @@ class _ItemState extends State<Item> {
     _enabled = widget.enabled;
   }
 
-  void toggle() {
+  void toggle() async {
+    final storage = await SharedPreferences.getInstance();
+    storage.reload();
+
+    String? storageData = storage.getString("data");
+
+    List storageDataList = [];
+
+    if (storageData != null && storageData != "") {
+      storageDataList = jsonDecode(storageData);
+    }
+    List newStorageDataList = [];
+    storageDataList.forEach((element) {
+      Map newElement = element;
+      if (element["id"] == widget.info["id"]) {
+        newElement["enabled"] = !_enabled;
+      }
+      newStorageDataList.add(newElement);
+    });
+    await storage.setString("data", jsonEncode(newStorageDataList));
+    print(newStorageDataList);
+
     setState(() {
       _enabled = !_enabled;
     });
@@ -366,7 +375,7 @@ class _ItemState extends State<Item> {
               ),
               IconButton(
                   onPressed: toggleDelete,
-                  icon: Icon(Icons.keyboard_arrow_down))
+                  icon: const Icon(Icons.keyboard_arrow_down))
             ],
           ),
           Row(
@@ -387,7 +396,7 @@ class _ItemState extends State<Item> {
                   onPressed: () {
                     widget.deleteItem(widget.id);
                   },
-                  child: Text("Delete Item", style: TextStyle(fontSize: 20))))
+                  child: const Text("Delete Item", style: TextStyle(fontSize: 20))))
         ],
       ),
     );
@@ -406,7 +415,6 @@ void periodicCheck() {
 
     String? storageData = storage.getString("data");
 
-    if (storageData != "" && storageData != null) {}
     List storageDataList = [];
 
     if (storageData != null && storageData != "") {
@@ -429,7 +437,7 @@ void periodicCheck() {
         });
         print(newStorageDataList);
         await storage.setString("data", jsonEncode(newStorageDataList));
-        refreshMyPage();
+        // Rebuild app
         if (item["state"] == "When Charging") {
           if (percentage == item["level"]) {
             playAlarm();
