@@ -40,6 +40,7 @@ jobs:
           draft: true
           prerelease: false
           body: ""
+          tag_name: ${{ github.ref_name }}
           files: |
             battery-alarm.apk
           token: ${{ secrets.GITHUB_TOKEN }}
