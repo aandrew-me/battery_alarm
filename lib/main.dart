@@ -71,6 +71,7 @@ Future<void> initializeService() async {
   void onDidReceiveNotificationResponse(
       NotificationResponse notificationResponse) async {
     print("Clicked on notification");
+    stopAlarm();
   }
 
   await flutterLocalNotificationsPlugin.initialize(initializationSettings,
@@ -163,7 +164,6 @@ class _MyAppState extends State<MyApp> {
       service.startService();
     } else {
       service.invoke("stopService");
-      stopAlarm();
     }
     print("Changing service status to $serviceEnabled");
     await storage.setString("serviceEnabled", jsonEncode(serviceEnabled));
