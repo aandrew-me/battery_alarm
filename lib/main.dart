@@ -26,9 +26,6 @@ void stopAlarm() {
   service.invoke("stopAlarm");
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
-
-  flutterLocalNotificationsPlugin.cancelAll();
-
   // Rebuild UI
   restartApp();
 }
@@ -73,7 +70,6 @@ Future<void> initializeService() async {
 
   void onDidReceiveNotificationResponse(
       NotificationResponse notificationResponse) async {
-    stopAlarm();
     print("Clicked on notification");
   }
 
